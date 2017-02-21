@@ -1,0 +1,155 @@
+#!/bin/bash
+
+# Settings
+PORT=7000
+TIMEOUT=2000
+NODES=3
+REPLICAS=1
+REDIS_PATH=/home/fengyajie/redis-cluster
+REDIS_SRC_PATH=/home/fengyajie/redis-3.2.7
+HOST=192.168.65.77
+HOST_SLAVE=192.168.65.78
+BACKLOG=10240
+AUTH=
+MAX_CLIENTS=100000
+MAX_MEM_BYTES=4294967296
+
+# You may want to put the above config parameters into config.sh in order to
+# override the defaults without modifying this script.
+
+if [ -a config.sh ]
+then
+    source "config.sh"
+fi
+
+# Computed vars
+ENDPORT=$((PORT+NODES))
+
+if [ "$1" == "start" ]
+then
+    while [ $((PORT < ENDPORT)) != "0" ]; do
+        PORT=$((PORT+1))
+        echo "Starting $PORT"
+        cd $REDIS_PATH/$PORT
+        ../redis-server $REDIS_PATH/$PORT/redis.conf
+    done
+    exit 0
+fi
+
+if [ "$1" == "create" ]
+then
+    HOSTS=""
+    TMP=$PORT
+    while [ $((TMP < ENDPORT)) != "0" ]; do
+        TMP=$((TMP+1))
+        HOSTS="$HOSTS $HOST:$TMP"
+    done
+    TMP=$PORT
+    while [ $((TMP < ENDPORT)) != "0" ]; do
+        TMP=$((TMP+1))
+        HOSTS="$HOSTS $HOST_SLAVE:$TMP"
+    done
+    $REDIS_PATH/redis-trib.rb create --replicas $REPLICAS $HOSTS
+    exit 0
+fi
+
+if [ "$1" == "stop" ]
+then
+    while [ $((PORT < ENDPORT)) != "0" ]; do
+        PORT=$((PORT+1))
+        echo "Stopping $PORT"
+        $REDIS_PATH/redis-cli -a "$AUTH" -h $HOST -p $PORT shutdown nosave 
+    done
+    exit 0
+fi
+
+if [ "$1" == "watch" ]
+then
+    PORT=$((PORT+1))
+    while [ 1 ]; do
+        clear
+        date
+        $REDIS_PATH/redis-cli -p $PORT cluster nodes | head -30
+        sleep 1
+    done
+    exit 0
+fi
+
+if [ "$1" == "tail" ]
+then
+    INSTANCE=$2
+    PORT=$((PORT+INSTANCE))
+    tail -f ${PORT}.log
+    exit 0
+fi
+
+if [ "$1" == "call" ]
+then
+    while [ $((PORT < ENDPORT)) != "0" ]; do
+        PORT=$((PORT+1))
+        $REDIS_PATH/redis-cli -p $PORT $2 $3 $4 $5 $6 $7 $8 $9
+    done
+    exit 0
+fi
+
+if [ "$1" == "clean" ]
+then
+    rm -rf *.log
+    rm -rf appendonly*.aof
+    rm -rf dump*.rdb
+    rm -rf nodes*.conf
+    exit 0
+fi
+
+if [ "$1" == "build" ]
+then
+    echo "$REDIS_SRC_PATH/src/redis-server $REDIS_SRC_PATH/src/redis-trib.rb $REDIS_SRC_PATH/src/redis-cli $REDIS_PATH"
+    cp $REDIS_SRC_PATH/src/redis-server $REDIS_SRC_PATH/src/redis-trib.rb $REDIS_SRC_PATH/src/redis-cli $REDIS_PATH
+
+    while [ $((PORT < ENDPORT)) != "0" ]; do
+        PORT=$((PORT+1))
+        echo "build redis $PORT"
+        mkdir $REDIS_PATH/$PORT
+        cp $REDIS_SRC_PATH/redis.conf $REDIS_PATH/$PORT
+        sed -i "s,save 900,#save 900," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,save 300,#save 300," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,save 60,#save 60," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,stop-writes-on-bgsave-error,#stop-writes-on-bgsave-error," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,rdbcompression,#rdbcompression," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,rdbchecksum,#rdbchecksum," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,^dbfilename,#dbfilename," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,dir ./,#dir ./," $REDIS_PATH/$PORT/redis.conf
+        if [ "$AUTH" != "" ]
+        then
+            sed -i "s,# masterauth <master-password>,masterauth $AUTH," $REDIS_PATH/$PORT/redis.conf
+            sed -i "s,# requirepass foobared,requirepass $AUTH," $REDIS_PATH/$PORT/redis.conf
+        fi
+        sed -i "s,# maxclients 10000,maxclients $MAX_CLIENTS," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-enabled yes,cluster-enabled yes," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# maxmemory <bytes>,maxmemory $MAX_MEM_BYTES," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,appendonly no,appendonly yes," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-config-file nodes-6379.conf,cluster-config-file ${REDIS_PATH}/${PORT}/nodes-${PORT}.conf," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-node-timeout 15000,cluster-node-timeout 15000," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-slave-validity-factor 10,cluster-slave-validity-factor 0," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-migration-barrier 1,cluster-migration-barrier 1," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,# cluster-require-full-coverage yes,cluster-require-full-coverage no," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,127.0.0.1,$HOST," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,6379,$PORT," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,tcp-backlog.*,tcp-backlog $BACKLOG," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,daemonize no,daemonize yes," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,pidfile.*,pidfile $REDIS_PATH/$PORT/redis_$PORT.pid," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,logfile.*,logfile $REDIS_PATH/$PORT/$PORT.log," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,appendonly.aof,$PORT.aof," $REDIS_PATH/$PORT/redis.conf
+        sed -i "s,cluster-config-file.*,cluster-config-file ${REDIS_PATH}/${PORT}/nodes-${PORT}.conf," $REDIS_PATH/$PORT/redis.conf
+    done
+    exit 0
+fi
+
+echo "Usage: $0 [start|create|stop|watch|tail|clean]"
+echo "build       -- create Redis Cluster enviorment"
+echo "start       -- Launch Redis Cluster instances."
+echo "create      -- Create a cluster using redis-trib create."
+echo "stop        -- Stop Redis Cluster instances."
+echo "watch       -- Show CLUSTER NODES output (first 30 lines) of first node."
+echo "tail <id>   -- Run tail -f of instance at base port + ID."
+echo "clean       -- Remove all instances data, logs, configs."
