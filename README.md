@@ -21,3 +21,10 @@ a script to generate redis cluster cross multi machine
 * MAX_CLIENTS - max clients simultaneously a redis node can hold
 * MAX_MEM_BYTES - max memory bytes of a redis node
 
+## zookeeper
+auto install zookeeper cluster for 3 nodes
+
+1. modify parameters like IP1 & IP2 & IP3 & MYID & path
+2. execute ./zookeeper_deploy.sh
+
+
