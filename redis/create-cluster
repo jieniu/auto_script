@@ -69,7 +69,7 @@ then
     while [ 1 ]; do
         clear
         date
-        $REDIS_PATH/redis-cli -p $PORT cluster nodes | head -30
+        $REDIS_PATH/redis-cli -h $HOST -p $PORT -a $AUTH cluster nodes | head -30
         sleep 1
     done
     exit 0
