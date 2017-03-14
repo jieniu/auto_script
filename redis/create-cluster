@@ -105,7 +105,7 @@ if [ "$1" == "build" ]
 then
     echo "$REDIS_SRC_PATH/src/redis-server $REDIS_SRC_PATH/src/redis-trib.rb $REDIS_SRC_PATH/src/redis-cli $REDIS_PATH"
     cp $REDIS_SRC_PATH/src/redis-server $REDIS_SRC_PATH/src/redis-trib.rb $REDIS_SRC_PATH/src/redis-cli $REDIS_PATH
-
+    sed -i "s#@r.*timeout => 60.*#@r = Redis.new(:host => @info[:host], :port => @info[:port], :timeout => 60, :passsward => \"$AUTH\")#" $REDIS_PATH/redis-trib.rb
     while [ $((PORT < ENDPORT)) != "0" ]; do
         PORT=$((PORT+1))
         echo "build redis $PORT"
