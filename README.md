@@ -2,12 +2,14 @@
 ## redis
 a script to generate redis cluster cross multi machine
 
+0. maybe you need install ruby and gem redis, eg. in CentOS: `yum install -y ruby && gem install redis;`
 1. download redis package && make
 2. change the settings at the begin of the create-cluster file
 3. `./create-cluster build` to build default 3 nodes, you can build another 3 nodes via another machine
 4. `./create-cluster start` to start each of 3 nodes
 5. `./create-cluster create` to create cluster
 6. `./create-cluster stop` to stop every redis
+7. `./create-cluster watch` to watch cluster status
 
 ### parameter
 * PORT - start port, default is 7000
