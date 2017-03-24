@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'Ucloud-25'
+    }
     stages {
         stage('Build') {
             steps {
