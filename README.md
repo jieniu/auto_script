@@ -30,3 +30,13 @@ auto install zookeeper cluster for 3 nodes
 2. execute ./zookeeper_deploy.sh
 
 
+## git
+When you want to make different repos have different user.name and user.email, you need
+```
+1. go to your specific repo
+$ cd $your_repo
+2. set the local user.name and user.email
+$ git config user.name $your_name
+$ git config user.email $your_email
+3. then you can submit and push with the local user.name and user.email, you can also check these values at .git/config
+```
